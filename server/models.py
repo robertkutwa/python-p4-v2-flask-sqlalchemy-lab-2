@@ -1,32 +1,68 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import MetaData
+from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy_serializer import SerializerMixin
 
+db = SQLAlchemy()
 
-metadata = MetaData(naming_convention={
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-})
-
-db = SQLAlchemy(metadata=metadata)
-
-
-class Customer(db.Model):
+# --------------------
+# Customer Model
+# --------------------
+class Customer(db.Model, SerializerMixin):
     __tablename__ = 'customers'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+
+    # Relationships
+    reviews = relationship("Review", back_populates="customer")
+
+    # Association Proxy
+    items = association_proxy('reviews', 'item')
+
+    # Serialization Rules
+    serialize_rules = ('-reviews.customer',)
 
     def __repr__(self):
-        return f'<Customer {self.id}, {self.name}>'
+        return f"<Customer {self.id}, {self.name}>"
 
-
-class Item(db.Model):
+# --------------------
+# Item Model
+# --------------------
+class Item(db.Model, SerializerMixin):
     __tablename__ = 'items'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    price = db.Column(db.Float)
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    price = Column(Integer)
+
+    # Relationships
+    reviews = relationship("Review", back_populates="item")
+
+    # Serialization Rules
+    serialize_rules = ('-reviews.item',)
 
     def __repr__(self):
-        return f'<Item {self.id}, {self.name}, {self.price}>'
+        return f"<Item {self.id}, {self.name}, {self.price}>"
+
+# --------------------
+# Review Model
+# --------------------
+class Review(db.Model, SerializerMixin):
+    __tablename__ = 'reviews'
+
+    id = Column(Integer, primary_key=True)
+    comment = Column(String)
+    customer_id = Column(Integer, ForeignKey('customers.id'))
+    item_id = Column(Integer, ForeignKey('items.id'))
+
+    # Relationships
+    customer = relationship("Customer", back_populates="reviews")
+    item = relationship("Item", back_populates="reviews")
+
+    # Serialization Rules
+    serialize_rules = ('-customer.reviews', '-item.reviews',)
+
+    def __repr__(self):
+        return f"<Review {self.id}, Customer {self.customer_id}, Item {self.item_id}>"
